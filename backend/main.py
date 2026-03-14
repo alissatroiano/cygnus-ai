@@ -18,7 +18,12 @@ app = FastAPI(title="Cygnus API")
 # Configure CORS so the React app can communicate with the backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, replace with specific origins
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -78,7 +83,7 @@ client = genai.Client(
     http_options={"api_version": "v1beta"},
     api_key=os.environ.get("GEMINI_API_KEY"),
 )
-MODEL = "models/gemini-2.0-flash-exp"
+MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
 
 SYSTEM_PROMPT = """
 You are Cynus, a proactive International Travel Advisor. You monitor a live video stream of the user's browser and alert them to check passport validity rules & requirements for their destination country when they are booking international flights. 
