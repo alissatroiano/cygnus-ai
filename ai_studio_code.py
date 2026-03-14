@@ -16,6 +16,9 @@ import asyncio
 import base64
 import io
 import traceback
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import cv2
 import pyaudio
