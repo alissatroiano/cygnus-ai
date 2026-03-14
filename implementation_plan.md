@@ -6,7 +6,7 @@ This plan details the steps to implement the Cygnus proactive International Trav
 
 ### `frontend/src/components/cygnus-agent` (New Component)
 - Create a new directory and component `CygnusAgent.tsx`.
-- Establish the `systemInstruction` using the provided user prompt (Cygnus, proactive International Travel Advisor).
+- Establish the `systemInstruction` using the provided user prompt (Cygnus, International Travel Advisor).
 - Define the two required tools: `navigate_to_url` and `select_country_requirements`.
 - Setup a `useEffect` to register these with `setConfig` via [useLiveAPIContext](file:///c:/Users/Cecca/Desktop/Alissa/web%20dev/HACKATHONS/cygnus-ai/frontend/src/contexts/LiveAPIContext.tsx#41-48).
 - Setup a `useEffect` to handle the `toolcall` event emitted by the Gemini Live API. When `navigate_to_url` or `select_country_requirements` is called, it will execute the dummy action (like logging or a small UI pop-up indicating the action to the user) and send the tool response back to the API.
