@@ -24,11 +24,61 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global Playwright state for the tool execution engine
+playwright_instance = None
+browser_instance = None
+current_page = None
+
+async def get_browser_page():
+    global playwright_instance, browser_instance, current_page
+    if not playwright_instance:
+        playwright_instance = await async_playwright().start()
+        browser_instance = await playwright_instance.chromium.launch(headless=False)
+        current_page = await browser_instance.new_page()
+    return current_page
+
+@app.post("/execute-tool")
+async def execute_tool(tool: dict):
+    name = tool.get("name")
+    args = tool.get("args", {})
+    page = await get_browser_page()
+    
+    print(f"Backend executing tool: {name} with {args}")
+    
+    try:
+        if name == "navigate_to_url":
+            await page.goto(args.get("url"))
+        elif name == "select_country_requirements":
+            country = args.get("country_name") or args.get("country")
+            if country:
+                search_selector = "input[aria-label*='Search'], input[placeholder*='Learn about'], input#country-search"
+                try:
+                    await page.wait_for_selector(search_selector, timeout=5000)
+                    await page.fill(search_selector, country)
+                    await page.press(search_selector, "Enter")
+                except:
+                    await page.keyboard.type(country)
+                    await page.keyboard.press("Enter")
+        elif name == "click_element":
+            await page.click(args.get("selector"))
+        elif name == "type_text":
+            await page.fill(args.get("selector"), args.get("text"))
+        elif name == "scroll_window":
+            direction = args.get("direction", "down")
+            if direction == "down":
+                await page.evaluate("window.scrollBy(0, 500)")
+            else:
+                await page.evaluate("window.scrollBy(0, -500)")
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Tool execution error: {e}")
+        return {"status": "error", "message": str(e)}
+
 client = genai.Client(
     http_options={"api_version": "v1beta"},
     api_key=os.environ.get("GEMINI_API_KEY"),
 )
-MODEL = "gemini-2.0-flash-exp"
+MODEL = "models/gemini-2.0-flash-exp"
 
 SYSTEM_PROMPT = """
 You are Cynus, a proactive International Travel Advisor. You monitor a live video stream of the user's browser and alert them to check passport validity rules & requirements for their destination country when they are booking international flights. 
