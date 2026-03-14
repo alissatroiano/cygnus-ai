@@ -8,6 +8,37 @@ Specific industry-wide statistics for passenger-initiated cancellations solely d
 
 Airlines often catch these errors during check-in, preventing passengers from reaching the gate with improper documentation [source](https://travel.state.gov/content/travel/en/passports/passport-help/faqs.html), but that doesn't mean the passenger is guaranteed a refund for the international flight and trip they most likely paid a significant amount for in advance. 
 
+## Getting Started
+
+### Prerequisites
+
+- Python 3.9+
+- Node.js and npm
+- [Google Gemini API Key](https://aistudio.google.com/app/apikey)
+
+### Setup
+
+1. Clone the repository.
+2. Create a `.env` file in the root directory and add your API key:
+   ```env
+   GEMINI_API_KEY=your_api_key_here
+   ```
+3. Install dependencies:
+   - Backend: `pip install -r requirements.txt`
+   - Frontend: `cd frontend && npm install`
+
+### Running the Project
+
+The easiest way to run both the backend and frontend is using the master script:
+
+1. **One-Click Start**: Run `run_all.bat` from the root directory. This will open two terminal windows for you.
+
+Alternatively, you can start them manually:
+
+- **Backend**: Execute `run_backend.bat` in the root directory.
+- **Frontend**: Navigate to the `frontend` folder and run `npm start`.
+- **Standalone AI Studio Script**: Run `python ai_studio_code.py` from the root directory.
+
 ## Inspiration
 
 
