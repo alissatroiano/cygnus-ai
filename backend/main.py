@@ -56,13 +56,36 @@ async def execute_tool(tool: dict):
         elif name == "select_country_requirements":
             country = args.get("country_name") or args.get("country")
             if country:
-                search_selector = "input[aria-label*='Search'], input[placeholder*='Learn about'], input#country-search"
+                # Scroll down to reveal the "Learn about your destination" box
+                await page.evaluate("window.scrollBy(0, 500)")
+                await asyncio.sleep(1) # Allow scroll to settle
+                
+                search_selector = "input#TSGcomboBox"
+                go_button = "button[aria-label='Open selected page']"
+                
                 try:
                     await page.wait_for_selector(search_selector, timeout=5000)
-                    await page.fill(search_selector, country)
+                    await page.click(search_selector)
+                    # Clear existing text if any
+                    await page.evaluate(f"document.querySelector('{search_selector}').value = ''")
+                    # Type with delay to trigger dynamic dropdown
+                    await page.type(search_selector, country, delay=100)
+                    await asyncio.sleep(1.5) # Wait for suggestions
+                    
+                    # Select the first suggestion (usually highlighted)
                     await page.press(search_selector, "Enter")
-                except:
+                    await asyncio.sleep(1)
+                    
+                    # Trigger navigation
+                    await page.click(go_button)
+                    print(f"Successfully selected {country} and clicked Go.")
+                except Exception as e:
+                    print(f"Selector-based selection failed: {e}")
+                    # Desperate fallback: try typing and pressing Enter twice
                     await page.keyboard.type(country)
+                    await asyncio.sleep(0.5)
+                    await page.keyboard.press("Enter")
+                    await asyncio.sleep(0.5)
                     await page.keyboard.press("Enter")
         elif name == "click_element":
             await page.click(args.get("selector"))
@@ -86,21 +109,25 @@ client = genai.Client(
 MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
 
 SYSTEM_PROMPT = """
-You are Cynus, a proactive International Travel Advisor. You monitor a live video stream of the user's browser and alert them to check passport validity rules & requirements for their destination country when they are booking international flights. 
+You are Cygnus, a proactive International Travel Advisor. You monitor the user's browser via video and INTERRUPT autonomously to protect them from travel cancellations.
 
-CRITICAL TRIGGER:
-As soon as you see a flight booking screen, airline logo (Delta, United, Emirates, etc.), or airport codes (JFK, LHR, CDG, etc.) for a country different from the user's origin, you MUST INTERRUPT.
+CRITICAL BEHAVIOR:
+- YOU ARE ALWAYS ON. If you see an international flight booking (airport codes, airline logos, flight selection screens), YOU MUST SPEAK IMMEDIATELY.
+- DO NOT WAIT for the user to speak or ask a question.
+- Interrupt politely but firmly as soon as you detect a destination.
 
-OBJECTIVE:
-1. Detect when the user is researching or booking international flights.
-2. INTERRUPT IMMEDIATELY: Say: "Excuse me, I noticed you're looking at international flights to [Destination Name]. Did you know 40% of travel cancellations are caused by passport validity issues, like the 6-month rule?"
-3. OFFER ACTION: "Would you like me to check the specific entry requirements for [Destination Name] right now?"
-4. TAKE CONTROL: If they say yes or imply they want help, use `navigate_to_url` to go to https://travel.state.gov/en/international-travel.html. Then, use `select_country_requirements` with the destination name.
+WORKFLOW:
+1. DETECT: Watch for international flight booking (airport codes, airline logos).
+2. INTERRUPT: Say: "I noticed you're looking at international flights. Did you know 40% of travel cancellations are caused by passport validity issues, like the 3-6 month rule or lack of empty stamp pages?"
+3. OFFER: Ask: "Would you like me to check the specific entry requirements for your destination?"
+4. ACT & GUIDE: If they agree:
+   - Call navigate_to_url("https://travel.state.gov/en/international-travel.html")
+   - Call select_country_requirements(country="Destination Name")
+   - EXPLAIN: "I've brought you to the State Department page and selected your destination. Let's review the passport requirement rules together below."
 
 GUIDELINES:
-- Be proactive. Don't wait for them to ask. You are an automated assistant.
-- Use the destination name you see on screen.
-- If you aren't sure of the country yet, ask: "I see you're booking a flight, where are you headed? I want to check your passport rules for you."
+- Be proactive. Never wait for a turn if you see a trigger.
+- If already on the travel page, guide them through the specific rules displayed on screen.
 """
 
 TOOLS = [
