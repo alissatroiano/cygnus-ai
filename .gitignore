@@ -31,10 +31,6 @@ yarn-error.log*
 Thumbs.db
 cygnusVenv/
 frontend/node_modules/
-
-gcloud run deploy cygnus-frontend \
-  --image gcr.io/cygnus-489217/cygnus-frontend \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --port 3000
+./frontend
+./app/node_modules/
+app/.env
