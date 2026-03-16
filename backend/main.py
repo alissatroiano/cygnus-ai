@@ -109,91 +109,42 @@ client = genai.Client(
 MODEL = "gemini-2.0-flash-exp"
 
 SYSTEM_PROMPT = """
-You are Cygnus, a proactive International Travel Advisor. You monitor the user's browser via video and INTERRUPT autonomously to protect them from travel cancellations.
+You are Cygnus, a real-time UI Navigator and International Travel Advisor. 
+
+CORE MISSION:
+You observe the user's screen capture to provide proactive, hands-free assistance.
 
 CRITICAL BEHAVIOR:
-1. DETECT: Watch for international flight searches or bookings (country names, airport codes, airline logos, flight selection screens).
-2. ALERT: CALL 'trigger_flight_alert' IMMEDIATELY as soon as you detect a destination. YOU MUST DO THIS BEFORE THEY REACH CHECKOUT.
-3. INTERRUPT: Say: "I noticed you're looking at international flights to [Destination]. Did you know 40% of travel cancellations are caused by passport validity issues, like the 3-6 month rule?"
-4. OFFER: Ask: "Would you like me to check the specific entry requirements for your destination?"
+1. VISUAL MONITORING: Constantly analyze the video stream for international travel patterns (flight searches, airport codes, passports).
+2. AUTONOMOUS ALERT: If you see an international destination, call 'trigger_flight_alert' IMMEDIATELY.
+3. VISUAL NAVIGATION: You can interact with the UI by "pointing" and clicking. Use 'click_at_location' with normalized coordinates [0-100] based on where you see elements in the video.
+4. SEARCH: When a destination is detected, use your Google Search tool to find 2026 entry requirements (passport validity, visas) for that specific country and tell the user.
 
-GUIDELINES:
-- Be proactive. Never wait for the user to speak if you see a flight trigger.
-- Your priority is the alert popover. Informing the user before they pay is your primary mission.
+Style: Proactive, safety-oriented, and high-tech.
 """
 
 TOOLS = [
     {
         "function_declarations": [
             {
-                "name": "navigate_to_url",
-                "description": "Navigate to a specific URL in the browser.",
+                "name": "click_at_location",
+                "description": "Simulates a click at specific normalized coordinates (0-100) on the user's screen as seen in the video stream.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
-                        "url": {
-                            "type": "STRING",
-                            "description": "The URL to navigate to."
-                        }
+                        "x": { "type": "NUMBER", "description": "Horizontal coordinate from 0 to 100" },
+                        "y": { "type": "NUMBER", "description": "Vertical coordinate from 0 to 100" }
                     },
-                    "required": ["url"]
-                }
-            },
-            {
-                "name": "select_country_requirements",
-                "description": "Searches for and selects a country on travel.state.gov to view its specific entry requirements.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "country": {
-                            "type": "STRING",
-                            "description": "The name of the country to search for (e.g., 'France', 'Japan')."
-                        }
-                    },
-                    "required": ["country"]
-                }
-            },
-            {
-                "name": "click_element",
-                "description": "Clicks on a specific element on the page using a selector.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "selector": { "type": "STRING", "description": "CSS selector" }
-                    },
-                    "required": ["selector"]
-                }
-            },
-            {
-                "name": "type_text",
-                "description": "Types text into an input field.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "selector": { "type": "STRING", "description": "CSS selector" },
-                        "text": { "type": "STRING", "description": "Text to type" }
-                    },
-                    "required": ["selector", "text"]
-                }
-            },
-            {
-                "name": "scroll_window",
-                "description": "Scrolls the window.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "direction": { "type": "STRING", "enum": ["up", "down"] }
-                    },
-                    "required": ["direction"]
+                    "required": ["x", "y"]
                 }
             },
             {
                 "name": "trigger_flight_alert",
-                "description": "Trigger a critical UI alert popover for the user when an international flight destination is detected.",
+                "description": "Action: Trigger a critical UI alert popover for the user when an international flight destination is visually detected on screen.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
-                        "destination": { "type": "STRING", "description": "The detected destination country or city." }
+                        "destination": { "type": "STRING", "description": "The destination country or city detected in the video." }
                     },
                     "required": ["destination"]
                 }
@@ -215,7 +166,7 @@ CONFIG = types.LiveConnectConfig(
     system_instruction=types.Content(
         parts=[types.Part(text=SYSTEM_PROMPT)]
     ),
-    tools=TOOLS,
+    tools=[types.Tool(google_search_retrieval=types.GoogleSearchRetrieval())] + TOOLS,
     context_window_compression=types.ContextWindowCompressionConfig(
         trigger_tokens=104857,
         sliding_window=types.SlidingWindow(target_tokens=52428),
@@ -265,6 +216,18 @@ async def websocket_endpoint(websocket: WebSocket):
                                 b64_data = msg["realtimeInput"]["data"]
                                 raw_data = base64.b64decode(b64_data)
                                 await session.send(input={"data": raw_data, "mime_type": mime_type})
+                            
+                            # Handle tool responses from frontend
+                            if "toolResponse" in msg:
+                                await session.send(input=types.LiveClientToolResponse(
+                                    function_responses=[
+                                        types.LiveClientFunctionResponse(
+                                            name=resp["name"],
+                                            id=resp["id"],
+                                            response=resp["response"]
+                                        ) for resp in msg["toolResponse"]["functionResponses"]
+                                    ]
+                                ))
 
                     except WebSocketDisconnect:
                         print("Client disconnected")
@@ -305,43 +268,14 @@ async def websocket_endpoint(websocket: WebSocket):
                                         print(f"Executing tool {tool_name} with args {args}")
                                         
                                         try:
-                                            if tool_name == "navigate_to_url":
-                                                await page.goto(args["url"])
-                                            elif tool_name == "select_country_requirements":
-                                                country = args.get("country")
-                                                if country:
-                                                    # Try to find the search input on travel.state.gov
-                                                    search_selector = "input[aria-label*='Search'], input[placeholder*='Learn about'], input#country-search"
-                                                    try:
-                                                        await page.wait_for_selector(search_selector, timeout=5000)
-                                                        await page.fill(search_selector, country)
-                                                        await page.press(search_selector, "Enter")
-                                                    except:
-                                                        # Fallback for dynamic sites
-                                                        await page.keyboard.type(country)
-                                                        await page.keyboard.press("Enter")
-                                            elif tool_name == "click_element":
-                                                # Using a generic selector approach or coordinates
-                                                # For simplicity, we'll try to use the selector if provided
-                                                selector = args.get("selector")
-                                                if selector:
-                                                    await page.click(selector)
-                                            elif tool_name == "type_text":
-                                                selector = args.get("selector")
-                                                text = args.get("text")
-                                                if selector and text:
-                                                    await page.fill(selector, text)
-                                            elif tool_name == "scroll_window":
-                                                direction = args.get("direction", "down")
-                                                if direction == "down":
-                                                    await page.evaluate("window.scrollBy(0, 500)")
-                                                else:
-                                                    await page.evaluate("window.scrollBy(0, -500)")
+                                            if tool_name == "click_at_location":
+                                                # The frontend handles the visual cursor, the backend just confirms
+                                                print(f"Visual Click triggered at: {args.get('x')}, {args.get('y')}")
                                             elif tool_name == "trigger_flight_alert":
-                                                # This is primarily handled by the frontend, so we just return success
+                                                # Primarily a frontend UI trigger
                                                 print(f"Triggering flight alert for {args.get('destination')}")
                                             
-                                            # Send response back to Gemini
+                                            # Send response back to Gemini to complete the turn
                                             await session.send(
                                                 input=types.LiveClientToolResponse(
                                                     function_responses=[
