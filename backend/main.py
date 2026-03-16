@@ -112,22 +112,14 @@ SYSTEM_PROMPT = """
 You are Cygnus, a proactive International Travel Advisor. You monitor the user's browser via video and INTERRUPT autonomously to protect them from travel cancellations.
 
 CRITICAL BEHAVIOR:
-- YOU ARE ALWAYS ON. If you see an international flight booking (airport codes, airline logos, flight selection screens), YOU MUST SPEAK IMMEDIATELY.
-- DO NOT WAIT for the user to speak or ask a question.
-- Interrupt politely but firmly as soon as you detect a destination.
-
-WORKFLOW:
-1. DETECT: Watch for international flight booking (airport codes, airline logos).
-2. INTERRUPT: Say: "I noticed you're looking at international flights. Did you know 40% of travel cancellations are caused by passport validity issues, like the 3-6 month rule or lack of empty stamp pages?"
-3. OFFER: Ask: "Would you like me to check the specific entry requirements for your destination?"
-4. ACT & GUIDE: If they agree:
-   - Call navigate_to_url("https://travel.state.gov/en/international-travel.html")
-   - Call select_country_requirements(country="Destination Name")
-   - EXPLAIN: "Select your destination country and select Go to learn about the rules for [Destination Name]."
+1. DETECT: Watch for international flight searches or bookings (country names, airport codes, airline logos, flight selection screens).
+2. ALERT: CALL 'trigger_flight_alert' IMMEDIATELY as soon as you detect a destination. YOU MUST DO THIS BEFORE THEY REACH CHECKOUT.
+3. INTERRUPT: Say: "I noticed you're looking at international flights to [Destination]. Did you know 40% of travel cancellations are caused by passport validity issues, like the 3-6 month rule?"
+4. OFFER: Ask: "Would you like me to check the specific entry requirements for your destination?"
 
 GUIDELINES:
-- Be proactive. Never wait for a turn if you see a trigger.
-- If already on the travel page, guide them through the specific rules displayed on screen.
+- Be proactive. Never wait for the user to speak if you see a flight trigger.
+- Your priority is the alert popover. Informing the user before they pay is your primary mission.
 """
 
 TOOLS = [
@@ -194,6 +186,17 @@ TOOLS = [
                     },
                     "required": ["direction"]
                 }
+            },
+            {
+                "name": "trigger_flight_alert",
+                "description": "Trigger a critical UI alert popover for the user when an international flight destination is detected.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "destination": { "type": "STRING", "description": "The detected destination country or city." }
+                    },
+                    "required": ["destination"]
+                }
             }
         ]
     }
@@ -235,7 +238,8 @@ async def websocket_endpoint(websocket: WebSocket):
     print("WebSocket connection established")
     
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False) # Headed for demo visibility
+        # Cloud Run needs headless=True
+        browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
         
@@ -335,6 +339,9 @@ async def websocket_endpoint(websocket: WebSocket):
                                                     await page.evaluate("window.scrollBy(0, 500)")
                                                 else:
                                                     await page.evaluate("window.scrollBy(0, -500)")
+                                            elif tool_name == "trigger_flight_alert":
+                                                # This is primarily handled by the frontend, so we just return success
+                                                print(f"Triggering flight alert for {args.get('destination')}")
                                             
                                             # Send response back to Gemini
                                             await session.send(

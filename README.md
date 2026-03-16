@@ -39,8 +39,6 @@ Alternatively, you can start them manually:
 - **Frontend**: Navigate to the `frontend` folder and run `npm start`.
 - **Standalone AI Studio Script**: Run `python ai_studio_code.py` from the root directory.
 
-## Inspiration
-
 
 
 ## What it does
