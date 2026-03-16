@@ -8,8 +8,67 @@ Specific industry-wide statistics for passenger-initiated cancellations solely d
 
 Airlines often catch these errors during check-in, preventing passengers from reaching the gate with improper documentation [source](https://travel.state.gov/content/travel/en/passports/passport-help/faqs.html), but that doesn't mean the passenger is guaranteed a refund for the international flight and trip they most likely paid a significant amount for in advance. 
 
-## Inspiration
+## Getting Started
 
+### Prerequisites
+
+- Python 3.9+
+- Node.js and npm
+- [Google Gemini API Key](https://aistudio.google.com/app/apikey)
+
+### Setup
+
+1. Clone the repository.
+2. Create a `.env` file in the root directory and add your API key:
+   ```env
+   GEMINI_API_KEY=your_api_key_here
+   ```
+3. Install dependencies:
+   - Backend: `pip install -r requirements.txt`
+   - Frontend: `cd frontend && npm install`
+
+### Running the Project
+
+The easiest way to run both the backend and frontend is using the master script:
+
+1. **One-Click Start**: Run `run_all.bat` from the root directory. This will open two terminal windows for you.
+
+Alternatively, you can start them manually:
+
+- **Backend**: Execute `run_backend.bat` in the root directory.
+- **Frontend**: Navigate to the `frontend` folder and run `npm start`.
+- **Standalone AI Studio Script**: Run `python ai_studio_code.py` from the root directory.
+
+## ☸️ Testing Instructions
+
+To test the **Cygnus UI Navigator**, follow these steps:
+
+### 1. Initial Connection
+1. Launch the app using `run_all.bat`.
+2. Click **"Start Monitoring"** in the web dashboard.
+3. Select the **Window** or **Tab** where you will perform your flight search when prompted for screen sharing.
+4. Verify the **Digital HUD & Scanning Laser** appears over your stream.
+
+### 2. Autonomous Flight Detection
+1. Open a new tab and go to [Google Flights](https://www.google.com/flights).
+2. Search for an international destination (e.g., **"Flights to Tokyo"**).
+3. **Observe**: Cygnus detects the destination and triggers the **Requirement Alert Popover**.
+
+### 3. Visual UI Interaction
+1. Use the **Manual Intent** box: Type *"Find the search button"*.
+2. **Observe**: A **Virtual Cursor** moves on the HUD to the exact pixel coordinates of the button.
+
+### 4. Real-time Search
+1. Ask: *"What are the entry requirements for Japan in 2026?"*
+2. **Observe**: Cygnus uses **Google Search** to fetch live travel data.
+
+## 🛠️ How it Works
+
+Cygnus is built as a **Multimodal UI Navigator**:
+- **Vision**: Uses Gemini 2.0 Flash to process real-time screenshots at 1fps.
+- **Visual Grounding**: Instead of relying on DOM/HTML, it calculates **normalized coordinates (0-100)** to perform clicks and actions based on raw pixels.
+- **Search**: Integrates **Google Search Retrieval** for live, accurate travel advisories.
+- **HUD**: A custom React-based Head-Up Display provides visual feedback of the agent's thought stream and calculated cursor positions.
 
 
 ## What it does
@@ -27,4 +86,8 @@ Airlines often catch these errors during check-in, preventing passengers from re
 
 ## What we learned
 
-## What's next for cygnus
+## 🚀 What's next for Cygnus
+
+- **Cross-App Workflows**: Moving beyond the browser to navigate desktop applications.
+- **Automated Document Scanning**: Visually checking a user's physical passport via webcam to compare against destination requirements.
+- **Mobile Navigator**: Bringing the UI Navigator to mobile devices for on-the-go travel assistance.

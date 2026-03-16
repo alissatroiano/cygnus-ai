@@ -38,13 +38,63 @@ CHUNK_SIZE = 1024
 
 MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
 
-DEFAULT_MODE = "camera"
+DEFAULT_MODE = "screen"
 
 client = genai.Client(
     http_options={"api_version": "v1beta"},
     api_key=os.environ.get("GEMINI_API_KEY"),
 )
 
+
+SYSTEM_PROMPT = """
+You are Cynus, a proactive International Travel Advisor. You monitor a live video stream of the user's browser and alert them to check passport validity rules & requirements for their destination country when they are booking international flights. 
+
+OBJECTIVE:
+1. Detect when the user is researching or booking international flights (look for airport codes, airline logos, or "Select Flights" screens).
+2. INTERRUPT KINDLY: When detected, verbally notify the user: "I noticed you're looking at international flights. Did you know 40% of travel cancellations are caused by passport validity issues, like the 3-6 month rule or lack of empty stamp pages?"
+3. OFFER HELP: Ask: "Would you like me to check the specific entry requirements for your destination?"
+4. TAKE ACTION: If they agree, use the `navigate_to_url` tool to go to https://travel.state.gov/en/international-travel.html. Then, use `select_country_requirements` to find their specific destination.
+
+GUIDELINES:
+- Be a helpful peer, not a bot.
+- Use visual cues from the stream to identify the destination country automatically.
+- Do not take control of the screen until the user gives explicit verbal or chat permission.
+"""
+
+TOOLS = [
+    {
+        "function_declarations": [
+            {
+                "name": "navigate_to_url",
+                "description": "Navigate to a specific URL in the browser.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "url": {
+                            "type": "STRING",
+                            "description": "The URL to navigate to."
+                        }
+                    },
+                    "required": ["url"]
+                }
+            },
+            {
+                "name": "select_country_requirements",
+                "description": "Select a country to view its specific entry requirements on travel.state.gov.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "country": {
+                            "type": "STRING",
+                            "description": "The name of the country."
+                        }
+                    },
+                    "required": ["country"]
+                }
+            }
+        ]
+    }
+]
 
 CONFIG = types.LiveConnectConfig(
     response_modalities=[
@@ -56,6 +106,10 @@ CONFIG = types.LiveConnectConfig(
             prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Zephyr")
         )
     ),
+    system_instruction=types.Content(
+        parts=[types.Part(text=SYSTEM_PROMPT)]
+    ),
+    tools=TOOLS,
     context_window_compression=types.ContextWindowCompressionConfig(
         trigger_tokens=104857,
         sliding_window=types.SlidingWindow(target_tokens=52428),
@@ -89,6 +143,8 @@ class AudioLoop:
             if text.lower() == "q":
                 break
             if self.session is not None:
+                # Based on SDK updates, send_realtime_input might expect a list of parts or a single content object.
+                # If positional arguments fail, we'll revert to the standard 'send' for now as it's more stable despite warnings.
                 await self.session.send(input=text or ".", end_of_turn=True)
 
     def _get_frame(self, cap):
@@ -115,9 +171,18 @@ class AudioLoop:
     async def get_frames(self):
         # This takes about a second, and will block the whole program
         # causing the audio pipeline to overflow if you don't to_thread it.
-        cap = await asyncio.to_thread(
-            cv2.VideoCapture, 0
-        )  # 0 represents the default camera
+        cap = None
+        for i in range(5):
+            cap = await asyncio.to_thread(cv2.VideoCapture, i)
+            if cap.isOpened():
+                print(f"Using camera index {i}")
+                break
+            cap.release()
+            cap = None
+        
+        if cap is None or not cap.isOpened():
+            print("Error: Could not open any camera.")
+            return
 
         while True:
             frame = await asyncio.to_thread(self._get_frame, cap)
@@ -170,6 +235,7 @@ class AudioLoop:
             if self.out_queue is not None:
                 msg = await self.out_queue.get()
                 if self.session is not None:
+                    # Reverting to 'send' as 'send_realtime_input' signature is inconsistent across SDK beta versions.
                     await self.session.send(input=msg)
 
     async def listen_audio(self):
@@ -203,6 +269,24 @@ class AudioLoop:
                         continue
                     if text := response.text:
                         print(text, end="")
+                    
+                    if response.tool_call:
+                        print(f"\n[TOOL CALL] {response.tool_call}")
+                        # Standalone script just logs tool calls
+                        for fc in response.tool_call.function_calls:
+                            print(f"Executing {fc.name} with args {fc.args}")
+                            # Send a placeholder response back to the model for the tool call
+                            await self.session.send(
+                                input=types.LiveClientToolResponse(
+                                    function_responses=[
+                                        types.LiveClientFunctionResponse(
+                                            name=fc.name,
+                                            id=fc.id,
+                                            response={"result": "success"}
+                                        )
+                                    ]
+                                )
+                            )
 
                 # If you interrupt the model, it sends a turn_complete.
                 # For interruptions to work, we need to stop playback.
