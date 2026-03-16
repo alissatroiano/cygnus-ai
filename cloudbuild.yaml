@@ -5,7 +5,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/cygnus-backend']
 
-  # 2. Deploy Backend to Cloud Run to get the URL
+  # 2. Deploy Backend to Cloud Run and capture its URL
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
     args:
@@ -16,10 +16,11 @@ steps:
           --region us-central1 \
           --platform managed \
           --allow-unauthenticated \
-          --set-env-vars "GEMINI_API_KEY=sm://projects/$PROJECT_ID/secrets/GEMINI_API_KEY/versions/latest" && \
+          --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest" && \
         gcloud run services describe cygnus-backend --region us-central1 --format 'value(status.url)' > /workspace/backend_url.txt
+        echo "Backend URL: $(cat /workspace/backend_url.txt)"
 
-  # 3. Build Frontend with the Backend URL and API Key
+  # 3. Build the App (Vite + Express) with secrets injected as build args
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
     args:
@@ -27,29 +28,29 @@ steps:
       - |
         BACKEND_URL=$(cat /workspace/backend_url.txt)
         docker build \
+          --build-arg GEMINI_API_KEY=$${GEMINI_API_KEY} \
           --build-arg VITE_BACKEND_URL=$$BACKEND_URL \
-          --build-arg REACT_APP_GEMINI_API_KEY=$${GEMINI_API_KEY} \
-          -t gcr.io/$PROJECT_ID/cygnus-frontend ./frontend
+          -t gcr.io/$PROJECT_ID/cygnus-app ./app
     secretEnv: ['GEMINI_API_KEY']
 
-  # 4. Push Frontend
+  # 4. Push App image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/cygnus-frontend']
+    args: ['push', 'gcr.io/$PROJECT_ID/cygnus-app']
 
-  # 5. Deploy Frontend to Cloud Run
+  # 5. Deploy App to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: 'bash'
     args:
-      - 'run'
-      - 'deploy'
-      - 'cygnus-frontend'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/cygnus-frontend'
-      - '--region'
-      - 'us-central1'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
+      - '-c'
+      - |
+        BACKEND_URL=$(cat /workspace/backend_url.txt)
+        gcloud run deploy cygnus-app \
+          --image gcr.io/$PROJECT_ID/cygnus-app \
+          --region us-central1 \
+          --platform managed \
+          --allow-unauthenticated \
+          --set-env-vars "GCP_BACKEND_URL=$$BACKEND_URL" \
+          --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest"
 
 availableSecrets:
   secretManager:
@@ -58,4 +59,4 @@ availableSecrets:
 
 images:
   - 'gcr.io/$PROJECT_ID/cygnus-backend'
-  - 'gcr.io/$PROJECT_ID/cygnus-frontend'
+  - 'gcr.io/$PROJECT_ID/cygnus-app'
