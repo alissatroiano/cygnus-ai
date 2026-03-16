@@ -106,7 +106,7 @@ client = genai.Client(
     http_options={"api_version": "v1beta"},
     api_key=os.environ.get("GEMINI_API_KEY"),
 )
-MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
+MODEL = "gemini-2.0-flash-exp"
 
 SYSTEM_PROMPT = """
 You are Cygnus, a proactive International Travel Advisor. You monitor the user's browser via video and INTERRUPT autonomously to protect them from travel cancellations.
@@ -274,9 +274,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 async def receive_from_gemini():
                     """Receive audio and text from Gemini and send to the React client."""
                     try:
-                        while True:
-                            turn = session.receive()
-                            async for response in turn:
+                        async for response in session.receive():
                                 if response.data:
                                     # Send audio data as base64 to client
                                     b64_audio = base64.b64encode(response.data).decode('utf-8')
