@@ -27,7 +27,7 @@ steps:
       - |
         BACKEND_URL=$(cat /workspace/backend_url.txt)
         docker build \
-          --build-arg REACT_APP_BACKEND_URL=$$BACKEND_URL \
+          --build-arg VITE_BACKEND_URL=$$BACKEND_URL \
           --build-arg REACT_APP_GEMINI_API_KEY=$${GEMINI_API_KEY} \
           -t gcr.io/$PROJECT_ID/cygnus-frontend ./frontend
     secretEnv: ['GEMINI_API_KEY']
