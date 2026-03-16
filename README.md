@@ -71,7 +71,23 @@ Cygnus is built as a **Multimodal UI Navigator**:
 - **HUD**: A custom React-based Head-Up Display provides visual feedback of the agent's thought stream and calculated cursor positions.
 
 
-## What it does
+## ☸️ What it does
+
+Cygnus is a **Unified UI Navigator** that leverages Gemini's multimodal capabilities to act as a real-time, hands-free travel companion. It transforms a standard browser into an intelligent, vision-aware environment.
+
+### 🧠 Gemini Multimodal Breakdown
+
+1.  **Vision-First Contextual Awareness**:
+    Cygnus captures a real-time stream of the user's screen (1 frame per second). Using **Gemini 2.0 Flash**, it performs continuous visual analysis to identify international destinations, airline logos, and booking widgets. Unlike traditional agents that crawl the DOM, Cygnus "sees" the page exactly as the user does, allowing it to work on any website without custom scrapers.
+
+2.  **Real-time Multimodal Dialogue**:
+    The agent maintains a low-latency WebSocket connection with Gemini Live. It combines **Video Input** (screen sharing) with **Audio Input** (user voice) to understand complex intents. If a user says *"Check that country's rules"* while looking at a flight to Japan, Gemini uses its visual context to resolve "that country" to Japan.
+
+3.  **Visual Grounding & Actionable Intelligence**:
+    When an international flight is detected, Gemini autonomously triggers the **Requirement HUD**. If the user asks for help navigating, Cygnus calculates **Normalized Visual Coordinates**. It translates its "biological-like" visual understanding of where a button is into precise $(x, y)$ coordinates for the virtual cursor.
+
+4.  **Integrated Search Retrieval**:
+    By combining vision with **Google Search Retrieval**, Cygnus doesn't just guess requirements—it fact-checks entry rules in real-time, ensuring users know about the "6-month passport rule" or visa mandates before they reach the payment screen.
 
 
 ## How we built it
