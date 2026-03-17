@@ -1,12 +1,10 @@
 .git
 .gitignore
 node_modules/
-frontend/node_modules/
 cygnusVenv/
 __pycache__/
 *.pyc
 .env
-frontend/.env
 .agents/
 .agent/
 brain/

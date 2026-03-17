@@ -6,19 +6,12 @@
 .env.test.local
 .env.production.local
 
-# Frontend specific environment files
-frontend/.env
-frontend/.env.*
-
 # Dependencies
 node_modules/
-frontend/node_modules/
 
 # Build outputs
 build/
 dist/
-frontend/build/
-frontend/dist/
 
 # Logs
 *.log
