@@ -4,8 +4,6 @@ Cygnus is a real-time, multimodal AI travel companion built with the **Google Ge
 
 Cygnus solves a very real problem: nearly 40% of travelers are unaware that passport requirements vary by destination, leading to boarding denials and lost travel costs. Cygnus acts as a "UI Navigator" — it watches your screen, listens to your voice, and takes action when it detects an international flight booking.
 
-> 📖 Read the full project story, inspiration, and challenges in [project_story.md](./project_story.md).
-
 ---
 
 ## 📋 Table of Contents
